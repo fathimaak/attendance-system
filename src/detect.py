@@ -9,11 +9,10 @@ def run_detection():
         if not ret:
             break
 
-        # Flip BGR → RGB for face_recognition
-        rgb = frame[:, :, ::-1]
-
-        # Detect face locations in the frame
-        locations = face_recognition.face_locations(rgb)
+        small = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        rgb_small = small[:, :, ::-1]
+        locations = face_recognition.face_locations(rgb_small)
+        locations = [(t*4, r*4, b*4, l*4) for (t, r, b, l) in locations]
 
         # Draw box around each detected face
         for (top, right, bottom, left) in locations:
@@ -23,7 +22,7 @@ def run_detection():
 
         cv2.imshow("Attendance System", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(30) & 0xFF == ord('q'):
             break
 
     video.release()
