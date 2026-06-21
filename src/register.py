@@ -1,25 +1,11 @@
 import cv2
-import pickle
-import os
 import numpy as np
 from deepface import DeepFace
+from database import init_db, add_student
 
-ENCODINGS_FILE = "data/encodings.pkl"
-MODEL_NAME = "ArcFace"  # Research-backed choice over FaceNet/dlib
-
-def load_encodings():
-    if os.path.exists(ENCODINGS_FILE):
-        with open(ENCODINGS_FILE, "rb") as f:
-            return pickle.load(f)
-    return {"names": [], "encodings": []}
-
-def save_encodings(data):
-    os.makedirs("data", exist_ok=True)
-    with open(ENCODINGS_FILE, "wb") as f:
-        pickle.dump(data, f)
+MODEL_NAME = "ArcFace"
 
 def get_embedding(frame_rgb):
-    """Extract 512D ArcFace embedding from a face image."""
     try:
         result = DeepFace.represent(
             img_path=frame_rgb,
@@ -28,8 +14,8 @@ def get_embedding(frame_rgb):
             detector_backend="opencv"
         )
         return np.array(result[0]["embedding"]), "ok"
-    except Exception as e:
-        return None, f"No face detected clearly. Try again."
+    except Exception:
+        return None, "No face detected clearly. Try again."
 
 def capture_and_register(student_name):
     video = cv2.VideoCapture(0)
@@ -37,7 +23,6 @@ def capture_and_register(student_name):
         print("Error: Cannot open camera.")
         return
 
-    data = load_encodings()
     print(f"\nRegistering: {student_name}")
     print("Camera is open. Look directly at camera.")
     print("Press ENTER to capture | type q + ENTER to quit\n")
@@ -58,7 +43,6 @@ def capture_and_register(student_name):
             print("Cancelled.")
             break
 
-        # Convert BGR → RGB for DeepFace
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         embedding, message = get_embedding(rgb)
 
@@ -66,19 +50,15 @@ def capture_and_register(student_name):
             print(message)
             continue
 
-        data["names"].append(student_name)
-        data["encodings"].append(embedding)
-        save_encodings(data)
-
-        print(f"\nRegistered {student_name} successfully!")
-        print(f"Embedding size: {len(embedding)}D")  # Should print 512D for ArcFace
-        print(f"Total students registered: {len(set(data['names']))}")
+        add_student(student_name, embedding)
+        print(f"\nRegistered {student_name} successfully in database!")
         break
 
     video.release()
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
+    init_db()
     name = input("Enter student name: ").strip()
     if name:
         capture_and_register(name)
